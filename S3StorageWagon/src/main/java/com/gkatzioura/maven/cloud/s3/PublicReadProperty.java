@@ -16,6 +16,10 @@
 
 package com.gkatzioura.maven.cloud.s3;
 
+/**
+ * Deprecated in favour of {@link CannedAccessControlListProperty}. This functionality wil be removed in a future version.
+ */
+@Deprecated
 public class PublicReadProperty {
 
     private static final String PUBLIC_REPOSITORY_PROP_TAG = "publicRepository";

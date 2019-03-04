@@ -25,18 +25,17 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.amazonaws.SdkClientException;
-import com.amazonaws.client.builder.AwsClientBuilder;
 import org.apache.commons.io.IOUtils;
 import org.apache.maven.wagon.ResourceDoesNotExistException;
 import org.apache.maven.wagon.TransferFailedException;
 import org.apache.maven.wagon.authentication.AuthenticationException;
 import org.apache.maven.wagon.authentication.AuthenticationInfo;
 
+import com.amazonaws.SdkClientException;
+import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
-import com.amazonaws.services.s3.model.CannedAccessControlList;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.ObjectMetadata;
@@ -51,36 +50,30 @@ public class S3StorageRepository {
 
     private final String bucket;
     private final String baseDirectory;
+    private final CannedAccessControlListProperty cannedAclProperty;
 
     private final KeyResolver keyResolver = new KeyResolver();
 
     private AmazonS3 amazonS3;
-    private PublicReadProperty publicReadProperty;
 
     private static final Logger LOGGER = Logger.getLogger(S3StorageRepository.class.getName());
 
     public S3StorageRepository(String bucket) {
-        this.bucket = bucket;
-        this.baseDirectory = "";
-        this.publicReadProperty = new PublicReadProperty(false);
+        this(bucket, "", new CannedAccessControlListProperty());
     }
 
-    public S3StorageRepository(String bucket, PublicReadProperty publicReadProperty) {
-        this.bucket = bucket;
-        this.baseDirectory = "";
-        this.publicReadProperty = publicReadProperty;
+    public S3StorageRepository(String bucket, CannedAccessControlListProperty cannedAclProperty) {
+        this(bucket, "", cannedAclProperty);
     }
 
     public S3StorageRepository(String bucket, String baseDirectory) {
-        this.bucket = bucket;
-        this.baseDirectory = baseDirectory;
-        this.publicReadProperty = new PublicReadProperty(false);
+        this(bucket, baseDirectory, new CannedAccessControlListProperty());
     }
 
-    public S3StorageRepository(String bucket, String baseDirectory, PublicReadProperty publicReadProperty) {
+    public S3StorageRepository(String bucket, String baseDirectory, CannedAccessControlListProperty cannedAclProperty) {
         this.bucket = bucket;
         this.baseDirectory = baseDirectory;
-        this.publicReadProperty = publicReadProperty;
+        this.cannedAclProperty = cannedAclProperty;
     }
 
 
@@ -154,7 +147,7 @@ public class S3StorageRepository {
         try {
             try(InputStream inputStream = new TransferProgressFileInputStream(file,transferProgress)) {
                 PutObjectRequest putObjectRequest = new PutObjectRequest(bucket,key,inputStream,new ObjectMetadata());
-                applyPublicRead(putObjectRequest);
+                putObjectRequest.withCannedAcl(cannedAclProperty.get());
                 amazonS3.putObject(putObjectRequest);
             }
         } catch (AmazonS3Exception | IOException e) {
@@ -191,13 +184,6 @@ public class S3StorageRepository {
         List<String> objects = new ArrayList<>();
         retrieveAllObjects(objectListing, objects);
         return objects;
-    }
-
-    private void applyPublicRead(PutObjectRequest putObjectRequest) {
-        if(publicReadProperty.get()) {
-            LOGGER.info("Public read was set to true");
-            putObjectRequest.withCannedAcl(CannedAccessControlList.PublicRead);
-        }
     }
 
     private void retrieveAllObjects(ObjectListing objectListing, List<String> objects) {

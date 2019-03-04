@@ -17,9 +17,6 @@
 package com.gkatzioura.maven.cloud.s3;
 
 import java.io.File;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -28,7 +25,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import com.gkatzioura.maven.cloud.resolver.KeyResolver;
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.wagon.ConnectionException;
 import org.apache.maven.wagon.PathUtils;
@@ -43,20 +39,23 @@ import org.apache.maven.wagon.repository.Repository;
 import org.apache.maven.wagon.resource.Resource;
 
 import com.amazonaws.services.s3.model.AmazonS3Exception;
+import com.gkatzioura.maven.cloud.resolver.KeyResolver;
 import com.gkatzioura.maven.cloud.transfer.TransferProgress;
 import com.gkatzioura.maven.cloud.transfer.TransferProgressImpl;
 import com.gkatzioura.maven.cloud.wagon.AbstractStorageWagon;
 
 public class S3StorageWagon extends AbstractStorageWagon {
 
+    private static final Logger LOGGER = Logger.getLogger(S3StorageWagon.class.getName());
+
     private S3StorageRepository s3StorageRepository;
     private final KeyResolver keyResolver = new KeyResolver();
 
-
     private String region;
+    private String cannedAcl;
+    @Deprecated
     private Boolean publicRepository;
 
-    private static final Logger LOGGER = Logger.getLogger(S3StorageWagon.class.getName());
     private String endpoint;
     private String pathStyleEnabled;
 
@@ -183,7 +182,7 @@ public class S3StorageWagon extends AbstractStorageWagon {
         final String directory = containerResolver.resolve(repository);
 
         LOGGER.log(Level.FINER,String.format("Opening connection for bucket %s and directory %s",bucket,directory));
-        s3StorageRepository = new S3StorageRepository(bucket, directory, new PublicReadProperty(publicRepository));
+        s3StorageRepository = new S3StorageRepository(bucket, directory, new CannedAccessControlListProperty(this.cannedAcl, new PublicReadProperty(publicRepository)));
         s3StorageRepository.connect(authenticationInfo, new RegionProperty(region), new EndpointProperty(endpoint), new PathStyleEnabledProperty(pathStyleEnabled));
 
         sessionListenerContainer.fireSessionLoggedIn();
@@ -206,12 +205,22 @@ public class S3StorageWagon extends AbstractStorageWagon {
 		this.region = region;
 	}
 
+    @Deprecated
     public Boolean getPublicRepository() {
         return publicRepository;
     }
 
+    @Deprecated
     public void setPublicRepository(Boolean publicRepository) {
         this.publicRepository = publicRepository;
+    }
+
+    public String getCannedAcl() {
+        return cannedAcl;
+    }
+
+    public void setCannedAcl(String cannedAcl) {
+        this.cannedAcl = cannedAcl;
     }
 
     public String getEndpoint() {
